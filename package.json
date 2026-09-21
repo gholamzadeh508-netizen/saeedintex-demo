@@ -1,7 +1,11 @@
 {
-  "name":"saeedintex-cms-v2",
-  "version":"2.0.0",
-  "private":true,
-  "scripts":{"start":"node server.js"},
-  "engines":{"node":">=18"}
+  "name": "saeedintex-cms-v3-ai",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

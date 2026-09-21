@@ -24,3 +24,17 @@ Render settings:
 - Set ADMIN_PASSWORD and SESSION_SECRET environment variables.
 
 Before final production launch, replace demo file persistence with PostgreSQL + durable object storage. The site modules are separated so the UI/content model does not need to be rebuilt for that migration.
+
+
+## فعال‌سازی هوش مصنوعی
+در Render > Environment این متغیرها را اضافه کنید:
+- `OPENAI_API_KEY` = کلید پروژه OpenAI API
+- `OPENAI_MODEL` = `gpt-5.6-luna` (اختیاری؛ پیش‌فرض همین است)
+
+کلید API فقط در سرور خوانده می‌شود و هرگز در HTML/JavaScript سمت مرورگر قرار نمی‌گیرد.
+قابلیت‌های AI:
+- نوشتن مقاله کامل از روی موضوع
+- ساخت چکیده
+- بهینه‌سازی ساختار مقاله، بولد هوشمند و لینک داخلی
+- پیشنهاد SEO Title / Meta Description / Slug
+- پیش‌نمایش و تأیید مدیر قبل از اعمال
