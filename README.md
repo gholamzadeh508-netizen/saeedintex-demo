@@ -74,3 +74,11 @@ Before final production launch, replace demo file persistence with PostgreSQL + 
 - List shows status, view count and last edit date; sorting by most-viewed is included.
 - Article public page records one view per browser session.
 - Important: view counts and uploaded files in this Render demo use the instance filesystem. Before the final live site, move content, analytics and uploads to persistent database/object storage so deploys or instance replacement cannot reset them.
+
+## v3.7
+- Keeps featured image / top-of-article image separate from inline article images.
+- Added `افزودن تصویر` to the article editor toolbar.
+- Inline images are automatically optimized to WebP before upload.
+- Supports Alt text, caption, display size and alignment.
+- Click any inline image in the editor to replace/edit it or delete it.
+- Inline images render responsively in the public article page.

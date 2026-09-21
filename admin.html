@@ -78,7 +78,7 @@ function renderArticlesArea(){
     <label>چکیده</label><textarea data-ai="${i}" data-k="excerpt">${esc(a.excerpt||'')}</textarea>
     <div class="toolbar"><button onclick="aiAction(${i},'excerpt')">نوشتن چکیده با AI</button></div>
     <label>متن مقاله</label>
-    <div class="toolbar"><button onclick="aiAction(${i},'write_body')">نوشتن متن مقاله با AI</button><button onclick="aiAction(${i},'article')">بازنویسی و بهینه‌سازی با AI</button><button onclick="aiAction(${i},'continue_body')">ادامه متن با AI</button><button class="format-btn" onmousedown="event.preventDefault();editorBold(${i})"><b>B</b> Bold</button><button class="format-btn" onmousedown="event.preventDefault();editorLink(${i})">🔗 لینک</button><button class="format-btn" onmousedown="event.preventDefault();editorUnlink(${i})">حذف لینک</button><button class="ai-link-btn" onclick="aiAction(${i},'links')">✨ پیشنهاد لینک با AI</button><button class="link-audit-btn" onclick="auditArticleLinks(${i})">🔎 بررسی لینک‌های فعلی</button></div>
+    <div class="toolbar"><button onclick="aiAction(${i},'write_body')">نوشتن متن مقاله با AI</button><button onclick="aiAction(${i},'article')">بازنویسی و بهینه‌سازی با AI</button><button onclick="aiAction(${i},'continue_body')">ادامه متن با AI</button><button class="format-btn" onmousedown="event.preventDefault();editorBold(${i})"><b>B</b> Bold</button><button class="format-btn" onmousedown="event.preventDefault();editorLink(${i})">🔗 لینک</button><button class="format-btn" onmousedown="event.preventDefault();editorUnlink(${i})">حذف لینک</button><button class="format-btn image-insert-btn" onclick="openInlineImageDialog(${i})">🖼 افزودن تصویر</button><button class="ai-link-btn" onclick="aiAction(${i},'links')">✨ پیشنهاد لینک با AI</button><button class="link-audit-btn" onclick="auditArticleLinks(${i})">🔎 بررسی لینک‌های فعلی</button></div>
     <div class="editor" id="articleEditor${i}" contenteditable="true" data-ai="${i}" data-k="body">${a.body||''}</div>
     ${imageField('تصویر شاخص',a.image||'','articleImage'+i,'article',`data-ai="${i}" data-k="image"`)}
     <label>ویدیو (آپارات / یوتیوب / لینک)</label><input data-ai="${i}" data-k="video" value="${esc(a.video||'')}">
@@ -101,6 +101,8 @@ function bindEditors(){
     const i=+ed.dataset.ai;
     ['mouseup','keyup','input','focus'].forEach(ev=>ed.addEventListener(ev,()=>rememberEditorSelection(i)));
     ed.addEventListener('click',e=>{
+      const img=e.target.closest('img[data-inline-image]');
+      if(img){e.preventDefault();e.stopPropagation();openInlineImageDialog(i,img);return}
       const link=e.target.closest('a[href]');
       if(link&&!e.shiftKey){e.preventDefault();window.open(link.getAttribute('href'),'_blank','noopener')}
     });
@@ -138,6 +140,134 @@ function newArticle(){sync();const now=new Date().toISOString().slice(0,10);D.ar
 function delArticle(i){if(confirm('مقاله حذف شود؟')){sync();D.articles.splice(i,1);editingArticleIndex=null;render()}}
 async function seoPreview(i){sync();const s=await api('/api/seo/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(D.articles[i])});D.articles[i].seo={...D.articles[i].seo,...s,mode:'auto'};render()}
 
+
+
+let pendingInlineImageEditorIndex=null,pendingInlineImageElement=null,pendingInlineImageUpload=null;
+
+function articleImageFigureHtml({src,alt='',caption='',size='large',align='center'}){
+  const safeSrc=esc(src||''),safeAlt=esc(alt||''),safeCaption=esc(caption||'');
+  const cls=`article-inline-image size-${size} align-${align}`;
+  return `<figure class="${cls}" data-inline-figure="1"><img src="${safeSrc}" alt="${safeAlt}" data-inline-image="1" data-size="${size}" data-align="${align}">${safeCaption?`<figcaption>${safeCaption}</figcaption>`:''}</figure>`;
+}
+function openInlineImageDialog(i,imgEl=null){
+  rememberEditorSelection(i);
+  pendingInlineImageEditorIndex=i;
+  pendingInlineImageElement=imgEl||null;
+  pendingInlineImageUpload=null;
+
+  const currentFigure=imgEl?imgEl.closest('figure[data-inline-figure]'):null;
+  const current={
+    src:imgEl?.getAttribute('src')||'',
+    alt:imgEl?.getAttribute('alt')||'',
+    caption:currentFigure?.querySelector('figcaption')?.textContent||'',
+    size:imgEl?.dataset.size||'large',
+    align:imgEl?.dataset.align||'center'
+  };
+
+  const o=document.createElement('div');
+  o.className='image-modal-backdrop';
+  o.innerHTML=`<div class="image-modal">
+    <div class="image-modal-head"><h2>${imgEl?'ویرایش تصویر داخل مقاله':'افزودن تصویر داخل مقاله'}</h2><button class="image-modal-x" type="button">×</button></div>
+    <div class="image-modal-grid">
+      <div>
+        <label>انتخاب تصویر</label>
+        <input id="inlineImageFile" type="file" accept="image/*">
+        <button class="smallbtn upload-btn" id="inlineUploadBtn" type="button">آپلود و بهینه‌سازی خودکار</button>
+        <div id="inlineImageStats" class="muted image-stats"></div>
+        <img id="inlineImagePreview" class="inline-image-preview ${current.src?'':'hidden'}" src="${esc(current.src)}" alt="">
+      </div>
+      <div>
+        <label>متن جایگزین (Alt) برای سئو</label>
+        <input id="inlineAlt" value="${esc(current.alt)}" placeholder="مثلاً تشک بادی مناسب کمپینگ">
+        <label>کپشن زیر تصویر</label>
+        <input id="inlineCaption" value="${esc(current.caption)}" placeholder="اختیاری">
+        <div class="form-grid">
+          <div><label>اندازه نمایش</label><select id="inlineSize">
+            <option value="small" ${current.size==='small'?'selected':''}>کوچک</option>
+            <option value="medium" ${current.size==='medium'?'selected':''}>متوسط</option>
+            <option value="large" ${current.size==='large'?'selected':''}>بزرگ</option>
+            <option value="full" ${current.size==='full'?'selected':''}>تمام عرض متن</option>
+          </select></div>
+          <div><label>چیدمان</label><select id="inlineAlign">
+            <option value="right" ${current.align==='right'?'selected':''}>راست</option>
+            <option value="center" ${current.align==='center'?'selected':''}>وسط</option>
+            <option value="left" ${current.align==='left'?'selected':''}>چپ</option>
+          </select></div>
+        </div>
+        <p class="notice">تصویر قبل از آپلود به WebP تبدیل و متناسب با وب کوچک می‌شود. Alt بهتر است توضیح واقعی همان تصویر باشد، نه فهرست کلمات کلیدی.</p>
+      </div>
+    </div>
+    <div class="image-modal-actions">
+      <button class="primary" id="inlineApplyBtn">${imgEl?'ذخیره تغییرات':'درج در مقاله'}</button>
+      ${imgEl?'<button class="smallbtn danger" id="inlineDeleteBtn">حذف تصویر</button>':''}
+      <button class="smallbtn" id="inlineCancelBtn">انصراف</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+
+  const close=()=>o.remove();
+  o.querySelector('.image-modal-x').onclick=close;
+  o.querySelector('#inlineCancelBtn').onclick=close;
+
+  o.querySelector('#inlineUploadBtn').onclick=async()=>{
+    const f=o.querySelector('#inlineImageFile').files[0];
+    if(!f)return alert('ابتدا تصویر را انتخاب کنید.');
+    const btn=o.querySelector('#inlineUploadBtn'),old=btn.textContent;
+    btn.disabled=true;btn.textContent='در حال بهینه‌سازی و آپلود...';
+    try{
+      const r=await uploadImage(f,'article');
+      pendingInlineImageUpload=r.url;
+      const prev=o.querySelector('#inlineImagePreview');
+      prev.src=r.url;prev.classList.remove('hidden');
+      o.querySelector('#inlineImageStats').textContent=`${r.originalWidth}×${r.originalHeight} و ${kb(r.beforeBytes)}KB → ${r.width}×${r.height} WebP و ${kb(r.afterBytes)}KB`;
+      if(!o.querySelector('#inlineAlt').value.trim()){
+        o.querySelector('#inlineAlt').value=f.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ');
+      }
+    }catch(e){alert('خطای آپلود تصویر: '+e.message)}
+    finally{btn.disabled=false;btn.textContent=old}
+  };
+
+  o.querySelector('#inlineApplyBtn').onclick=()=>{
+    const src=pendingInlineImageUpload||current.src;
+    if(!src)return alert('تصویر را انتخاب و آپلود کنید.');
+    const data={
+      src,
+      alt:o.querySelector('#inlineAlt').value.trim(),
+      caption:o.querySelector('#inlineCaption').value.trim(),
+      size:o.querySelector('#inlineSize').value,
+      align:o.querySelector('#inlineAlign').value
+    };
+    if(!data.alt && !confirm('Alt تصویر خالی است. برای سئو و دسترس‌پذیری بهتر است Alt نوشته شود. با Alt خالی ادامه می‌دهید؟'))return;
+
+    const editor=document.getElementById('articleEditor'+i);
+    if(!editor)return;
+    if(imgEl){
+      const figure=imgEl.closest('figure[data-inline-figure]');
+      const box=document.createElement('div');box.innerHTML=articleImageFigureHtml(data);
+      const replacement=box.firstElementChild;
+      if(figure)figure.replaceWith(replacement);else imgEl.replaceWith(replacement);
+    }else{
+      restoreEditorSelection(i);
+      const sel=window.getSelection();
+      const box=document.createElement('div');box.innerHTML=articleImageFigureHtml(data);
+      const node=box.firstElementChild;
+      if(sel&&sel.rangeCount){
+        const r=sel.getRangeAt(0);r.deleteContents();r.insertNode(node);
+        r.setStartAfter(node);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+      }else editor.appendChild(node);
+    }
+    rememberEditorSelection(i);
+    close();
+  };
+
+  const del=o.querySelector('#inlineDeleteBtn');
+  if(del)del.onclick=()=>{
+    if(!confirm('این تصویر از متن مقاله حذف شود؟'))return;
+    const figure=imgEl.closest('figure[data-inline-figure]');
+    if(figure)figure.remove();else imgEl.remove();
+    close();
+  };
+}
 
 function knownLinkTargets(){
   const m=new Map([
