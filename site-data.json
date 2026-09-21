@@ -1,0 +1,33 @@
+{
+  "settings": {
+    "brand": "سعید اینتکس",
+    "tagline": "مرجع تخصصی محصولات بادی",
+    "logo": "",
+    "favicon": "",
+    "shopUrl": "https://www.saeedintex.com",
+    "hero": {
+      "title": "همه چیز درباره محصولات بادی؛ قبل از خرید درست انتخاب کنید",
+      "subtitle": "راهنمای انتخاب، آموزش استفاده، عیب‌یابی و تجربه واقعی درباره محصولات بادی.",
+      "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1800&q=88"
+    }
+  },
+  "homeBlocks": [
+    {"id":"categories","type":"categories","title":"راهنما بر اساس نوع محصول","enabled":true},
+    {"id":"mission","type":"mission","title":"یک سایت مرجع، نه فروشگاه دوم","enabled":true},
+    {"id":"articles","type":"articles","title":"مقالات تازه","enabled":true},
+    {"id":"questions","type":"questions","title":"پرسش‌های تازه کاربران","enabled":true}
+  ],
+  "categories": [
+    {"id":"air-mattress","title":"تشک بادی","subtitle":"خانگی، کمپینگ و داخل خودرو","image":"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=84"},
+    {"id":"boat","title":"قایق بادی","subtitle":"انتخاب، استفاده و نگهداری","image":"https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1000&q=84"},
+    {"id":"pool","title":"استخر بادی","subtitle":"راهنمای انتخاب و مراقبت","image":"https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1000&q=84"},
+    {"id":"accessories","title":"پمپ و لوازم جانبی","subtitle":"پمپ، تعمیرات و تجهیزات","image":"https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1000&q=84"}
+  ],
+  "articles": [
+    {"id":"air-mattress-guide","status":"published","category":"راهنمای خرید","title":"راهنمای انتخاب تشک بادی؛ کدام مدل برای شما مناسب است؟","excerpt":"نوع استفاده، ابعاد، ارتفاع، پمپ و شرایط نگهداری را قبل از خرید بررسی کنید.","image":"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=84","video":"","body":"<h2>اول کاربرد را مشخص کنید</h2><p>تشک بادی مهمان، کمپینگ و داخل خودرو کاربردهای متفاوتی دارند.</p><h2>به فشار باد توجه کنید</h2><p>باد بیش از حد می‌تواند فشار غیرضروری به درزها وارد کند.</p>","seo":{"mode":"auto","title":"","description":"","slug":"راهنمای-انتخاب-تشک-بادی","canonical":"","ogImage":"","schemaType":"Article"}}
+  ],
+  "questions": [
+    {"id":"q1","title":"چرا تشک بادی بعد از چند ساعت کمی نرم می‌شود؟","body":"آیا همیشه نشانه سوراخ بودن است؟","author":"کاربر مهمان","status":"approved","createdAt":"2026-09-21","answers":[{"id":"a1","body":"تغییر دما و کشش اولیه جنس می‌تواند روی فشار هوا اثر بگذارد. اگر افت باد زیاد است باید نشتی بررسی شود.","author":"سعید اینتکس","official":true,"status":"approved","helpful":3,"createdAt":"2026-09-21"}]}
+  ],
+  "customHtml": ""
+}

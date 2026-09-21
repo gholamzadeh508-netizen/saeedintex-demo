@@ -1,33 +1,8 @@
-function deepClone(v){return JSON.parse(JSON.stringify(v))}
-function loadData(){
-  try{
-    const raw=localStorage.getItem('saeedintex_demo_data');
-    return raw ? JSON.parse(raw) : deepClone(window.DEFAULT_DATA);
-  }catch(e){return deepClone(window.DEFAULT_DATA)}
-}
-function saveData(d){localStorage.setItem('saeedintex_demo_data',JSON.stringify(d))}
-function resetData(){localStorage.removeItem('saeedintex_demo_data')}
-function nav(active=''){
-  return `<div class="topbar"><div class="wrap">مرجع آموزشی محصولات بادی • تجربه واقعی و راهنمای کاربردی</div></div>
-  <header class="header"><div class="wrap header-row">
-    <a class="logo" href="/"><b>سعید</b> اینتکس</a>
-    <nav class="nav">
-      <a class="${active==='home'?'active':''}" href="/">خانه</a>
-      <a class="${active==='guide'?'active':''}" href="/guide.html">راهنمای خرید</a>
-      <a class="${active==='articles'?'active':''}" href="/articles.html">مقالات و آموزش</a>
-      <a class="${active==='customers'?'active':''}" href="/customers.html">تجربه مشتریان</a>
-      <a class="${active==='about'?'active':''}" href="/about.html">درباره سایت</a>
-      <a class="cta" id="shopNav" target="_blank">مشاهده فروشگاه</a>
-    </nav>
-  </div></header>`;
-}
-function footer(){
-  return `<footer class="footer"><div class="wrap"><div class="footer-grid">
-    <div><h3>سعید اینتکس</h3><p>مرجع آموزشی برای انتخاب، استفاده و نگهداری بهتر محصولات بادی.</p></div>
-    <div><h3>راهنما</h3><p><a href="/guide.html">راهنمای خرید</a></p><p><a href="/articles.html">مقالات</a></p></div>
-    <div><h3>مدیریت</h3><p><a href="/admin.html">پنل مدیریت دمو</a></p></div>
-  </div><small>نسخه آزمایشی سایت مرجع سعید اینتکس</small></div></footer>`;
-}
-function articleCard(a){
-  return `<article class="card"><img src="${a.image}" alt="${a.title}"><div class="card-body"><span class="tag">${a.category}</span><h3>${a.title}</h3><p>${a.excerpt}</p><a class="read" href="/article.html?id=${encodeURIComponent(a.id)}">مطالعه مقاله ←</a></div></article>`;
-}
+async function api(url,opt={}){const r=await fetch(url,opt),t=await r.text();let j={};try{j=JSON.parse(t)}catch{j={error:t}}if(!r.ok)throw new Error(j.error||'خطا');return j}
+function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function nav(active=''){return `<div class="topbar"><div class="wrap">مرجع آموزشی محصولات بادی • قیمت و خرید در saeedintex.com</div></div><header class="header"><div class="wrap header-row"><a class="logo" href="/"><b>سعید</b> اینتکس</a><nav class="nav"><a class="${active==='home'?'active':''}" href="/">خانه</a><a class="${active==='articles'?'active':''}" href="/articles.html">مقالات</a><a class="${active==='qa'?'active':''}" href="/questions.html">پرسش و پاسخ</a><a class="${active==='about'?'active':''}" href="/about.html">درباره سایت</a><a class="shop-btn" id="shopNav" target="_blank">فروشگاه اصلی</a></nav></div></header>`}
+function footer(){return `<footer class="footer"><div class="wrap"><div class="footer-grid"><div><h3>سعید اینتکس</h3><p>مرجع آموزش، مقایسه، عیب‌یابی و تجربه واقعی محصولات بادی.</p></div><div><h3>دسترسی سریع</h3><p><a href="/articles.html">مقالات</a></p><p><a href="/questions.html">پرسش و پاسخ</a></p></div><div><h3>مدیریت</h3><p><a href="/admin.html">ورود مدیر</a></p></div></div><small>نسخه آزمایشی سایت مرجع سعید اینتکس</small></div></footer>`}
+function articleCard(a){return `<article class="card"><img src="${esc(a.image||'')}" alt="${esc(a.title)}"><div class="card-body"><span class="tag">${esc(a.category||'مقاله')}</span><h3>${esc(a.title)}</h3><p>${esc(a.excerpt||'')}</p><a class="read" href="/article.html?id=${encodeURIComponent(a.id)}">مطالعه مقاله ←</a></div></article>`}
+function qCard(q){const ans=(q.answers||[]).filter(a=>a.status==='approved').slice(0,2).map(a=>`<div class="answer ${a.official?'official':''}"><b>${esc(a.author)}</b>${a.official?' <span class="pill">پاسخ رسمی</span>':''}<p>${esc(a.body)}</p></div>`).join('');return `<div class="qa" id="${q.id}"><h3>${esc(q.title)}</h3><p>${esc(q.body)}</p>${ans}<a class="read" href="/questions.html#${q.id}">مشاهده و پاسخ ←</a></div>`}
+async function imageToWebp(file,maxW=1600,maxH=1000,quality=.82){const bmp=await createImageBitmap(file),ratio=Math.min(maxW/bmp.width,maxH/bmp.height,1),w=Math.max(1,Math.round(bmp.width*ratio)),h=Math.max(1,Math.round(bmp.height*ratio)),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(bmp,0,0,w,h);return c.toDataURL('image/webp',quality)}
+async function uploadImage(file,role='article'){const sizes={hero:[1800,900],article:[1400,1000],thumb:[800,600],logo:[700,300]},s=sizes[role]||sizes.article,dataUrl=await imageToWebp(file,s[0],s[1]);return api('/api/admin/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name,dataUrl})})}
