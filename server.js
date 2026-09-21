@@ -1,9 +1,21 @@
 const http=require('http');const fs=require('fs');const path=require('path');const crypto=require('crypto');const {URL}=require('url');
 const ROOT=__dirname,PORT=process.env.PORT||3000,DATA=path.join(ROOT,'site-data.json'),UPLOADS=path.join(ROOT,'uploads'),VERSIONS=path.join(ROOT,'versions');
+fs.mkdirSync(UPLOADS,{recursive:true});
+fs.mkdirSync(VERSIONS,{recursive:true});
 const ADMIN_PASSWORD=process.env.ADMIN_PASSWORD||'change-me-now',SECRET=process.env.SESSION_SECRET||'demo-secret-change-me';
 function send(res,code,body,type='text/plain; charset=utf-8',headers={}){res.writeHead(code,{'Content-Type':type,'Cache-Control':'no-store',...headers});res.end(body)}
 function j(res,code,obj,headers={}){send(res,code,JSON.stringify(obj),'application/json; charset=utf-8',headers)}
-function read(){return JSON.parse(fs.readFileSync(DATA,'utf8'))}function save(d){const s=new Date().toISOString().replace(/[:.]/g,'-');fs.copyFileSync(DATA,path.join(VERSIONS,s+'.json'));fs.writeFileSync(DATA,JSON.stringify(d,null,2),'utf8')}
+function read(){return JSON.parse(fs.readFileSync(DATA,'utf8'))}
+function save(d){
+  fs.mkdirSync(VERSIONS,{recursive:true});
+  if(fs.existsSync(DATA)){
+    const s=new Date().toISOString().replace(/[:.]/g,'-');
+    fs.copyFileSync(DATA,path.join(VERSIONS,s+'.json'));
+  }
+  const tmp=DATA+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify(d,null,2),'utf8');
+  fs.renameSync(tmp,DATA);
+}
 function body(req,limit=15000000){return new Promise((ok,bad)=>{let s='';req.on('data',c=>{s+=c;if(s.length>limit){bad(new Error('too_large'));req.destroy()}});req.on('end',()=>ok(s));req.on('error',bad)})}
 function sig(v){return crypto.createHmac('sha256',SECRET).update(v).digest('hex')}function token(){const p=Buffer.from(JSON.stringify({exp:Date.now()+28800000})).toString('base64url');return p+'.'+sig(p)}
 function auth(req){const m=(req.headers.cookie||'').match(/admin_session=([^;]+)/);if(!m)return false;const [p,s]=m[1].split('.');if(!p||!s||sig(p)!==s)return false;try{return JSON.parse(Buffer.from(p,'base64url').toString()).exp>Date.now()}catch{return false}}
@@ -90,7 +102,17 @@ http.createServer(async(req,res)=>{const u=new URL(req.url,`http://${req.headers
  if(u.pathname==='/api/site'&&req.method==='GET')return j(res,200,read());
  if(u.pathname==='/api/login'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');if(x.password!==ADMIN_PASSWORD)return j(res,401,{error:'رمز نادرست است'});return j(res,200,{ok:true},{'Set-Cookie':`admin_session=${token()}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800`})}
  if(u.pathname==='/api/admin/site'&&req.method==='GET'){if(!auth(req))return j(res,401,{error:'unauthorized'});return j(res,200,read())}
- if(u.pathname==='/api/admin/site'&&req.method==='PUT'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req));save(x);return j(res,200,{ok:true})}
+ if(u.pathname==='/api/admin/site'&&req.method==='PUT'){
+   if(!auth(req))return j(res,401,{error:'unauthorized'});
+   try{
+     const x=JSON.parse(await body(req));
+     save(x);
+     return j(res,200,{ok:true});
+   }catch(e){
+     console.error('Save error:',e);
+     return j(res,500,{error:'خطا در ذخیره‌سازی: '+(e.message||'نامشخص')});
+   }
+ }
  if(u.pathname==='/api/admin/upload'&&req.method==='POST'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req));const m=(x.dataUrl||'').match(/^data:image\/(webp|png|jpeg);base64,(.+)$/);if(!m)return j(res,400,{error:'فرمت تصویر نامعتبر است'});const ext=m[1]==='jpeg'?'jpg':m[1],name=Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;fs.writeFileSync(path.join(UPLOADS,name),Buffer.from(m[2],'base64'));return j(res,200,{url:'/uploads/'+name})}
  if(u.pathname==='/api/questions'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');if(!x.title||!x.body)return j(res,400,{error:'عنوان و متن سؤال لازم است'});const d=read();d.questions.unshift({id:'q'+Date.now(),title:x.title.slice(0,180),body:x.body.slice(0,4000),author:(x.author||'کاربر مهمان').slice(0,80),status:'pending',createdAt:new Date().toISOString().slice(0,10),answers:[]});save(d);return j(res,200,{ok:true,message:'سؤال برای بررسی ارسال شد'})}
  if(/^\/api\/questions\/[^/]+\/answers$/.test(u.pathname)&&req.method==='POST'){const id=u.pathname.split('/')[3],x=JSON.parse(await body(req)||'{}'),d=read(),q=d.questions.find(v=>v.id===id);if(!q)return j(res,404,{error:'سؤال پیدا نشد'});q.answers.push({id:'a'+Date.now(),body:(x.body||'').slice(0,5000),author:(x.author||'کاربر مهمان').slice(0,80),official:false,status:'pending',helpful:0,createdAt:new Date().toISOString().slice(0,10)});save(d);return j(res,200,{ok:true,message:'پاسخ برای بررسی ارسال شد'})}

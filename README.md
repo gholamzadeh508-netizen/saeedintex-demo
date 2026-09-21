@@ -41,3 +41,17 @@ Before final production launch, replace demo file persistence with PostgreSQL + 
 
 ## v3.1
 - Added AI controls directly beside article body: write body, rewrite/optimize, continue body.
+
+
+## v3.2 fix
+- Creates `uploads/` and `versions/` automatically on startup.
+- Fixes `server_error` when saving CMS changes on Render.
+- Uses an atomic temporary file when saving `site-data.json`.
+
+## v3.3
+- Bold and Link buttons now preserve the selected text reliably.
+- Added Unlink.
+- Fixed article-image upload persistence (removed duplicate input IDs).
+- Image optimizer now uses role-specific WebP presets; hero images are auto-cropped to a web banner ratio, article images preserve aspect ratio.
+- Shows image preview and before/after dimensions and approximate file size.
+- Admin sidebar buttons now use clearer, distinct professional colors and active-state highlighting.
