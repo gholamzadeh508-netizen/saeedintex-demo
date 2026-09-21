@@ -2,10 +2,10 @@
 <div id="login" class="login"><h2>ورود مدیر</h2><label>رمز مدیریت</label><input id="pass" type="password"><button class="primary" id="loginBtn">ورود</button><p id="loginMsg"></p></div>
 <div id="cms" class="hidden"><div id="head"></div><div class="admin-shell"><aside class="sidebar"><h3>مدیریت سایت</h3><button class="sideitem side-brand" data-tab="brand">برند و بنر</button><button class="sideitem side-layout" data-tab="layout">چیدمان صفحه اصلی</button><button class="sideitem side-articles" data-tab="articles">مقالات و سئو</button><button class="sideitem side-qa" data-tab="qa">پرسش و پاسخ</button><button class="sideitem side-html" data-tab="html">HTML سفارشی</button><a class="sideitem side-view" href="/" target="_blank">مشاهده سایت</a><a class="sideitem side-export" href="/api/export" target="_blank">خروجی کامل اطلاعات</a></aside><main><div id="workspace"></div><div class="savebar"><button class="primary" id="save">ذخیره همه تغییرات</button> <span id="saveMsg"></span></div></main></div></div>
 <script src="/app.js"></script><script>
-let D=null,tab='brand';
+let D=null,tab='brand',editingArticleIndex=null,articleSort='newest',articleSearch='';
 loginBtn.onclick=async()=>{try{await api('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass.value})});await loadAdmin()}catch(e){loginMsg.textContent=e.message}};
 async function loadAdmin(){D=await api('/api/admin/site');login.classList.add('hidden');cms.classList.remove('hidden');head.innerHTML=nav();shopNav.href=D.settings.shopUrl;render()}
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{sync();tab=b.dataset.tab;render()});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{sync();tab=b.dataset.tab;if(tab!=='articles')editingArticleIndex=null;render()});
 function imageField(label,value,id,role,attrs=''){return `<label>${label}</label><div class="image-field"><div class="form-grid"><input id="${id}" ${attrs} value="${esc(value||'')}"><div><input type="file" accept="image/*" id="${id}File"><button class="smallbtn upload-btn" type="button" onclick="doUpload('${id}','${role}')">آپلود و بهینه‌سازی خودکار</button></div></div><div class="image-feedback"><img id="${id}Preview" class="image-preview ${value?'':'hidden'}" src="${esc(value||'')}" alt=""><small id="${id}Info" class="muted"></small></div></div>`}
 function kb(n){return Math.max(1,Math.round((n||0)/1024))}
 async function doUpload(id,role){
@@ -20,25 +20,90 @@ async function doUpload(id,role){
 }
 function sync(){if(!D)return;if(tab==='brand'){D.settings.brand=brandName?.value||D.settings.brand;D.settings.logo=logo?.value||'';D.settings.hero.title=heroTitle?.value||'';D.settings.hero.subtitle=heroSub?.value||'';D.settings.hero.image=heroImage?.value||'';D.settings.shopUrl=shopUrl?.value||''}
 if(tab==='layout'){D.homeBlocks=[...document.querySelectorAll('.block-row')].map(el=>{const b=D.homeBlocks.find(x=>x.id===el.dataset.id);b.title=el.querySelector('.btitle').value;b.enabled=el.querySelector('.benabled').checked;return b})}
-if(tab==='articles'){document.querySelectorAll('[data-ai]').forEach(el=>{const a=D.articles[+el.dataset.ai],k=el.dataset.k;if(k==='body')a.body=el.innerHTML;else if(k.startsWith('seo.'))a.seo[k.split('.')[1]]=el.value;else a[k]=el.value})}
+if(tab==='articles'&&editingArticleIndex!==null){let changed=false;document.querySelectorAll('[data-ai]').forEach(el=>{const a=D.articles[+el.dataset.ai],k=el.dataset.k;if(!a)return;if(k==='body')a.body=el.innerHTML;else if(k.startsWith('seo.'))a.seo[k.split('.')[1]]=el.value;else a[k]=el.value;changed=true});if(changed&&D.articles[editingArticleIndex])D.articles[editingArticleIndex].updatedAt=new Date().toISOString().slice(0,10)}
 if(tab==='html'){D.customHtml=customHtml?.value||'';let b=D.homeBlocks.find(x=>x.type==='html');if(D.customHtml.trim()){if(!b)D.homeBlocks.push({id:'custom-html',type:'html',title:'HTML سفارشی',enabled:true,html:D.customHtml});else b.html=D.customHtml}else D.homeBlocks=D.homeBlocks.filter(x=>x.type!=='html')}}
 function renderCore(){if(tab==='brand')workspace.innerHTML=`<div class="panel"><h2>برند و بنر اصلی</h2><label>نام برند</label><input id="brandName" value="${esc(D.settings.brand)}">${imageField('لوگو',D.settings.logo,'logo','logo')}<label>عنوان بنر</label><textarea id="heroTitle">${esc(D.settings.hero.title)}</textarea><label>زیرعنوان بنر</label><textarea id="heroSub">${esc(D.settings.hero.subtitle)}</textarea>${imageField('تصویر بنر',D.settings.hero.image,'heroImage','hero')}<label>آدرس فروشگاه اصلی</label><input id="shopUrl" value="${esc(D.settings.shopUrl)}"></div>`;
 if(tab==='layout'){workspace.innerHTML=`<div class="panel"><h2>چیدمان صفحه اصلی</h2><p class="notice">بلوک‌ها را با کشیدن جابه‌جا کنید؛ نمایش هر بخش هم قابل خاموش‌کردن است.</p><div id="blocks">${D.homeBlocks.map(b=>`<div class="block-row" draggable="true" data-id="${b.id}"><span class="drag">☰</span><input class="btitle grow" value="${esc(b.title)}"><label><input class="benabled" type="checkbox" ${b.enabled?'checked':''}> نمایش</label></div>`).join('')}</div></div>`;enableDrag()}
-if(tab==='articles'){workspace.innerHTML=`<div class="panel"><h2>مقالات</h2><button class="primary" onclick="newArticle()">+ مقاله جدید</button> <button class="smallbtn" onclick="generateArticleAI()">نوشتن مقاله کامل با AI</button><p class="notice">هوش مصنوعی فقط پیشنهاد می‌دهد؛ قبل از اعمال، پیش‌نمایش و تأیید شما لازم است.</p></div>`+D.articles.map((a,i)=>`<div class="panel"><div class="form-grid"><div><label>عنوان</label><input data-ai="${i}" data-k="title" value="${esc(a.title)}"></div><div><label>وضعیت</label><select data-ai="${i}" data-k="status"><option value="published" ${a.status==='published'?'selected':''}>منتشر شده</option><option value="draft" ${a.status==='draft'?'selected':''}>پیش‌نویس</option></select></div></div><label>چکیده</label><textarea data-ai="${i}" data-k="excerpt">${esc(a.excerpt||'')}</textarea><div class="toolbar"><button onclick="aiAction(${i},'excerpt')">نوشتن چکیده با AI</button></div><label>متن مقاله</label><div class="toolbar"><button onclick="aiAction(${i},'write_body')">نوشتن متن مقاله با AI</button><button onclick="aiAction(${i},'article')">بازنویسی و بهینه‌سازی با AI</button><button onclick="aiAction(${i},'continue_body')">ادامه متن با AI</button><button class="format-btn" onmousedown="event.preventDefault();editorBold(${i})"><b>B</b> Bold</button><button class="format-btn" onmousedown="event.preventDefault();editorLink(${i})">🔗 لینک</button><button class="format-btn" onmousedown="event.preventDefault();editorUnlink(${i})">حذف لینک</button><button class="ai-link-btn" onclick="aiAction(${i},'links')">✨ پیشنهاد لینک با AI</button><button class="link-audit-btn" onclick="auditArticleLinks(${i})">🔎 بررسی لینک‌های فعلی</button></div><div class="editor" id="articleEditor${i}" contenteditable="true" data-ai="${i}" data-k="body">${a.body||''}</div>${imageField('تصویر شاخص',a.image||'','articleImage'+i,'article',`data-ai="${i}" data-k="image"`)}<label>ویدیو (آپارات / یوتیوب / لینک)</label><input data-ai="${i}" data-k="video" value="${esc(a.video||'')}"><h3>سئو</h3><div class="form-grid"><div><label>حالت</label><select data-ai="${i}" data-k="seo.mode"><option value="auto" ${a.seo?.mode==='auto'?'selected':''}>خودکار</option><option value="manual" ${a.seo?.mode==='manual'?'selected':''}>دستی</option><option value="ai" ${a.seo?.mode==='ai'?'selected':''}>هوش مصنوعی</option></select></div><div><label>Slug</label><input data-ai="${i}" data-k="seo.slug" value="${esc(a.seo?.slug||'')}"></div><div><label>SEO Title</label><input data-ai="${i}" data-k="seo.title" value="${esc(a.seo?.title||'')}"></div><div><label>Meta Description</label><textarea data-ai="${i}" data-k="seo.description">${esc(a.seo?.description||'')}</textarea></div></div><button class="smallbtn" onclick="seoPreview(${i})">تولید خودکار سئو</button> <button class="smallbtn" onclick="aiAction(${i},'seo')">پیشنهاد AI</button> <button class="smallbtn view-article-btn" onclick="saveAndViewArticle(${i}, event)">👁 ذخیره و مشاهده در سایت</button> <button class="smallbtn danger" onclick="delArticle(${i})">حذف</button></div>`).join('')}
+if(tab==='articles'){workspace.innerHTML=renderArticlesArea()}
 if(tab==='qa'){workspace.innerHTML=`<div class="panel"><h2>مدیریت پرسش و پاسخ</h2>${D.questions.map((q,qi)=>`<div class="qa"><b>${esc(q.title)}</b><p>${esc(q.body)}</p><label>وضعیت سؤال</label><select onchange="D.questions[${qi}].status=this.value"><option value="approved" ${q.status==='approved'?'selected':''}>تأیید</option><option value="pending" ${q.status==='pending'?'selected':''}>در انتظار</option><option value="rejected">رد</option></select>${(q.answers||[]).map((a,ai)=>`<div class="answer"><b>${esc(a.author)}</b><p>${esc(a.body)}</p><label><input type="checkbox" ${a.official?'checked':''} onchange="D.questions[${qi}].answers[${ai}].official=this.checked"> پاسخ رسمی سعید اینتکس</label><select onchange="D.questions[${qi}].answers[${ai}].status=this.value"><option value="approved" ${a.status==='approved'?'selected':''}>تأیید</option><option value="pending" ${a.status==='pending'?'selected':''}>در انتظار</option><option value="rejected">رد</option></select></div>`).join('')}</div>`).join('')}</div>`}
 if(tab==='html')workspace.innerHTML=`<div class="panel"><h2>HTML سفارشی</h2><p class="notice">این بخش از هسته سایت جداست و می‌تواند بدون دست‌زدن به ساختار اصلی اضافه یا حذف شود.</p><label>HTML / CSS سفارشی</label><textarea id="customHtml" style="min-height:330px">${esc(D.customHtml||'')}</textarea></div>`}
 
 
+
+function faNum(n){return new Intl.NumberFormat('fa-IR').format(Number(n||0))}
+function articleStatusText(s){return s==='published'?'منتشر شده':'پیش‌نویس'}
+function articleListItems(){
+  let arr=(D.articles||[]).map((a,i)=>({a,i}));
+  if(articleSearch.trim()){
+    const q=articleSearch.trim().toLowerCase();
+    arr=arr.filter(x=>(x.a.title||'').toLowerCase().includes(q)||(x.a.category||'').toLowerCase().includes(q));
+  }
+  if(articleSort==='views')arr.sort((x,y)=>Number(y.a.views||0)-Number(x.a.views||0));
+  else if(articleSort==='title')arr.sort((x,y)=>(x.a.title||'').localeCompare(y.a.title||'','fa'));
+  else arr.sort((x,y)=>(y.a.updatedAt||y.a.createdAt||'').localeCompare(x.a.updatedAt||x.a.createdAt||''));
+  return arr;
+}
+function renderArticlesArea(){
+  if(editingArticleIndex===null){
+    const items=articleListItems();
+    const total=(D.articles||[]).reduce((s,a)=>s+Number(a.views||0),0);
+    return `<div class="panel article-list-panel">
+      <div class="article-list-head">
+        <div><h2>مقالات</h2><p class="muted">تعداد مقالات: ${faNum(D.articles.length)} · مجموع بازدید ثبت‌شده: ${faNum(total)}</p></div>
+        <div class="article-list-actions"><button class="primary" onclick="newArticle()">+ مقاله جدید</button><button class="smallbtn" onclick="generateArticleAI()">نوشتن مقاله کامل با AI</button></div>
+      </div>
+      <div class="article-list-tools"><input id="articleSearch" value="${esc(articleSearch)}" placeholder="جستجوی عنوان مقاله..." oninput="articleSearch=this.value;render()"><select onchange="articleSort=this.value;render()"><option value="newest" ${articleSort==='newest'?'selected':''}>جدیدترین ویرایش</option><option value="views" ${articleSort==='views'?'selected':''}>پربازدیدترین</option><option value="title" ${articleSort==='title'?'selected':''}>عنوان الفبایی</option></select></div>
+      <div class="article-table article-table-head"><div>عنوان مقاله</div><div>وضعیت</div><div>بازدید</div><div>آخرین ویرایش</div><div>عملیات</div></div>
+      <div class="article-list">${items.length?items.map(({a,i})=>`<div class="article-table article-row">
+        <button class="article-title-link" onclick="editArticle(${i})">${esc(a.title||'بدون عنوان')}</button>
+        <div><span class="status-pill ${a.status==='published'?'published':'draft'}">${articleStatusText(a.status)}</span></div>
+        <div class="views-cell"><b>${faNum(a.views||0)}</b><small> بازدید</small></div>
+        <div class="muted">${esc(a.updatedAt||a.createdAt||'—')}</div>
+        <div class="row-actions"><button class="smallbtn" onclick="editArticle(${i})">ویرایش</button><a class="smallbtn view-row-btn" href="/article.html?id=${encodeURIComponent(a.id)}" target="_blank">مشاهده</a></div>
+      </div>`).join(''):`<div class="empty-state">مقاله‌ای پیدا نشد.</div>`}</div>
+      <p class="notice article-views-note">بازدید هر مقاله در همین فهرست نمایش داده می‌شود و می‌توانی فهرست را بر اساس «پربازدیدترین» مرتب کنی.</p>
+    </div>`;
+  }
+  const i=editingArticleIndex,a=D.articles[i];
+  if(!a){editingArticleIndex=null;return renderArticlesArea()}
+  return `<div class="panel article-editor-top">
+    <div class="article-editor-head">
+      <div><button class="smallbtn back-list-btn" onclick="backToArticleList()">← فهرست مقالات</button><h2>${esc(a.title||'ویرایش مقاله')}</h2><span class="views-badge">👁 ${faNum(a.views||0)} بازدید</span></div>
+      <div><a class="smallbtn view-row-btn" href="/article.html?id=${encodeURIComponent(a.id)}" target="_blank">مشاهده در سایت</a></div>
+    </div>
+    <p class="notice">هوش مصنوعی فقط پیشنهاد می‌دهد؛ قبل از اعمال، پیش‌نمایش و تأیید شما لازم است.</p>
+  </div>
+  <div class="panel">
+    <div class="form-grid"><div><label>عنوان</label><input data-ai="${i}" data-k="title" value="${esc(a.title)}"></div><div><label>وضعیت</label><select data-ai="${i}" data-k="status"><option value="published" ${a.status==='published'?'selected':''}>منتشر شده</option><option value="draft" ${a.status==='draft'?'selected':''}>پیش‌نویس</option></select></div></div>
+    <label>چکیده</label><textarea data-ai="${i}" data-k="excerpt">${esc(a.excerpt||'')}</textarea>
+    <div class="toolbar"><button onclick="aiAction(${i},'excerpt')">نوشتن چکیده با AI</button></div>
+    <label>متن مقاله</label>
+    <div class="toolbar"><button onclick="aiAction(${i},'write_body')">نوشتن متن مقاله با AI</button><button onclick="aiAction(${i},'article')">بازنویسی و بهینه‌سازی با AI</button><button onclick="aiAction(${i},'continue_body')">ادامه متن با AI</button><button class="format-btn" onmousedown="event.preventDefault();editorBold(${i})"><b>B</b> Bold</button><button class="format-btn" onmousedown="event.preventDefault();editorLink(${i})">🔗 لینک</button><button class="format-btn" onmousedown="event.preventDefault();editorUnlink(${i})">حذف لینک</button><button class="ai-link-btn" onclick="aiAction(${i},'links')">✨ پیشنهاد لینک با AI</button><button class="link-audit-btn" onclick="auditArticleLinks(${i})">🔎 بررسی لینک‌های فعلی</button></div>
+    <div class="editor" id="articleEditor${i}" contenteditable="true" data-ai="${i}" data-k="body">${a.body||''}</div>
+    ${imageField('تصویر شاخص',a.image||'','articleImage'+i,'article',`data-ai="${i}" data-k="image"`)}
+    <label>ویدیو (آپارات / یوتیوب / لینک)</label><input data-ai="${i}" data-k="video" value="${esc(a.video||'')}">
+    <h3>سئو</h3>
+    <div class="form-grid"><div><label>حالت</label><select data-ai="${i}" data-k="seo.mode"><option value="auto" ${a.seo?.mode==='auto'?'selected':''}>خودکار</option><option value="manual" ${a.seo?.mode==='manual'?'selected':''}>دستی</option><option value="ai" ${a.seo?.mode==='ai'?'selected':''}>هوش مصنوعی</option></select></div><div><label>Slug</label><input data-ai="${i}" data-k="seo.slug" value="${esc(a.seo?.slug||'')}"></div><div><label>SEO Title</label><input data-ai="${i}" data-k="seo.title" value="${esc(a.seo?.title||'')}"></div><div><label>Meta Description</label><textarea data-ai="${i}" data-k="seo.description">${esc(a.seo?.description||'')}</textarea></div></div>
+    <div class="article-editor-actions"><button class="smallbtn" onclick="seoPreview(${i})">تولید خودکار سئو</button><button class="smallbtn" onclick="aiAction(${i},'seo')">پیشنهاد AI</button><button class="smallbtn view-article-btn" onclick="saveAndViewArticle(${i}, event)">👁 ذخیره و مشاهده در سایت</button><button class="smallbtn danger" onclick="delArticle(${i})">حذف</button></div>
+  </div>`;
+}
+function editArticle(i){sync();editingArticleIndex=i;render();window.scrollTo({top:0,behavior:'smooth'})}
+function backToArticleList(){sync();editingArticleIndex=null;render();window.scrollTo({top:0,behavior:'smooth'})}
+
 function refreshSidebarActive(){
   document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
 }
-function render(){renderCore();refreshSidebarActive();if(tab==='articles')setTimeout(bindEditors,0)}
+function render(){renderCore();refreshSidebarActive();if(tab==='articles'&&editingArticleIndex!==null)setTimeout(bindEditors,0)}
 
 const editorRanges={};
 function bindEditors(){
   document.querySelectorAll('.editor[data-ai]').forEach(ed=>{
     const i=+ed.dataset.ai;
     ['mouseup','keyup','input','focus'].forEach(ev=>ed.addEventListener(ev,()=>rememberEditorSelection(i)));
+    ed.addEventListener('click',e=>{
+      const link=e.target.closest('a[href]');
+      if(link&&!e.shiftKey){e.preventDefault();window.open(link.getAttribute('href'),'_blank','noopener')}
+    });
   });
 }
 function rememberEditorSelection(i){
@@ -69,8 +134,8 @@ function editorLink(i){
 function editorUnlink(i){if(!restoreEditorSelection(i))return;document.execCommand('unlink',false,null);rememberEditorSelection(i)}
 
 function enableDrag(){let drag=null;document.querySelectorAll('.block-row').forEach(el=>{el.ondragstart=()=>drag=el;el.ondragover=e=>e.preventDefault();el.ondrop=e=>{e.preventDefault();if(drag!==el){const a=[...blocks.children],di=a.indexOf(drag),ti=a.indexOf(el);blocks.insertBefore(drag,ti>di?el.nextSibling:el)}}})}
-function newArticle(){sync();D.articles.unshift({id:'a'+Date.now(),status:'draft',category:'آموزش',title:'مقاله جدید',excerpt:'',image:'',video:'',body:'<p>متن مقاله...</p>',seo:{mode:'auto',title:'',description:'',slug:'article-'+Date.now(),canonical:'',ogImage:'',schemaType:'Article'}});render()}
-function delArticle(i){if(confirm('مقاله حذف شود؟')){sync();D.articles.splice(i,1);render()}}
+function newArticle(){sync();const now=new Date().toISOString().slice(0,10);D.articles.unshift({id:'a'+Date.now(),status:'draft',category:'آموزش',title:'مقاله جدید',excerpt:'',image:'',video:'',body:'<p>متن مقاله...</p>',views:0,createdAt:now,updatedAt:now,seo:{mode:'auto',title:'',description:'',slug:'article-'+Date.now(),canonical:'',ogImage:'',schemaType:'Article'}});editingArticleIndex=0;render()}
+function delArticle(i){if(confirm('مقاله حذف شود؟')){sync();D.articles.splice(i,1);editingArticleIndex=null;render()}}
 async function seoPreview(i){sync();const s=await api('/api/seo/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(D.articles[i])});D.articles[i].seo={...D.articles[i].seo,...s,mode:'auto'};render()}
 
 
@@ -187,8 +252,8 @@ async function generateArticleAI(){
   try{
     const r=await api('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generate',topic,article:{title:topic,excerpt:'',body:'',category:'آموزش'}})});
     aiOverlay(`<label>عنوان</label><input id="aiTitle" value="${esc(r.title||topic)}"><label>چکیده</label><textarea id="aiExcerpt">${esc(r.excerpt||'')}</textarea><label>متن مقاله</label><div id="aiBody" class="editor" contenteditable="true">${r.body||''}</div>`,o=>{
-      D.articles.unshift({id:'a'+Date.now(),status:'draft',category:r.category||'آموزش',title:o.querySelector('#aiTitle').value,excerpt:o.querySelector('#aiExcerpt').value,image:'',video:'',body:o.querySelector('#aiBody').innerHTML,seo:{mode:'auto',title:'',description:'',slug:'article-'+Date.now(),canonical:'',ogImage:'',schemaType:'Article'}});
-      render();
+      const now=new Date().toISOString().slice(0,10);D.articles.unshift({id:'a'+Date.now(),status:'draft',category:r.category||'آموزش',title:o.querySelector('#aiTitle').value,excerpt:o.querySelector('#aiExcerpt').value,image:'',video:'',body:o.querySelector('#aiBody').innerHTML,views:0,createdAt:now,updatedAt:now,seo:{mode:'auto',title:'',description:'',slug:'article-'+Date.now(),canonical:'',ogImage:'',schemaType:'Article'}});
+      editingArticleIndex=0;render();
     });
   }catch(e){alert('خطا: '+e.message)}
 }

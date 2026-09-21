@@ -16,6 +16,11 @@ function save(d){
   fs.writeFileSync(tmp,JSON.stringify(d,null,2),'utf8');
   fs.renameSync(tmp,DATA);
 }
+function writeNoVersion(d){
+  const tmp=DATA+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify(d,null,2),'utf8');
+  fs.renameSync(tmp,DATA);
+}
 function body(req,limit=15000000){return new Promise((ok,bad)=>{let s='';req.on('data',c=>{s+=c;if(s.length>limit){bad(new Error('too_large'));req.destroy()}});req.on('end',()=>ok(s));req.on('error',bad)})}
 function sig(v){return crypto.createHmac('sha256',SECRET).update(v).digest('hex')}function token(){const p=Buffer.from(JSON.stringify({exp:Date.now()+28800000})).toString('base64url');return p+'.'+sig(p)}
 function auth(req){const m=(req.headers.cookie||'').match(/admin_session=([^;]+)/);if(!m)return false;const [p,s]=m[1].split('.');if(!p||!s||sig(p)!==s)return false;try{return JSON.parse(Buffer.from(p,'base64url').toString()).exp>Date.now()}catch{return false}}
@@ -141,6 +146,14 @@ http.createServer(async(req,res)=>{const u=new URL(req.url,`http://${req.headers
  if(u.pathname==='/api/admin/upload'&&req.method==='POST'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req));const m=(x.dataUrl||'').match(/^data:image\/(webp|png|jpeg);base64,(.+)$/);if(!m)return j(res,400,{error:'فرمت تصویر نامعتبر است'});const ext=m[1]==='jpeg'?'jpg':m[1],name=Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;fs.writeFileSync(path.join(UPLOADS,name),Buffer.from(m[2],'base64'));return j(res,200,{url:'/uploads/'+name})}
  if(u.pathname==='/api/questions'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');if(!x.title||!x.body)return j(res,400,{error:'عنوان و متن سؤال لازم است'});const d=read();d.questions.unshift({id:'q'+Date.now(),title:x.title.slice(0,180),body:x.body.slice(0,4000),author:(x.author||'کاربر مهمان').slice(0,80),status:'pending',createdAt:new Date().toISOString().slice(0,10),answers:[]});save(d);return j(res,200,{ok:true,message:'سؤال برای بررسی ارسال شد'})}
  if(/^\/api\/questions\/[^/]+\/answers$/.test(u.pathname)&&req.method==='POST'){const id=u.pathname.split('/')[3],x=JSON.parse(await body(req)||'{}'),d=read(),q=d.questions.find(v=>v.id===id);if(!q)return j(res,404,{error:'سؤال پیدا نشد'});q.answers.push({id:'a'+Date.now(),body:(x.body||'').slice(0,5000),author:(x.author||'کاربر مهمان').slice(0,80),official:false,status:'pending',helpful:0,createdAt:new Date().toISOString().slice(0,10)});save(d);return j(res,200,{ok:true,message:'پاسخ برای بررسی ارسال شد'})}
+ if(/^\/api\/articles\/[^/]+\/view$/.test(u.pathname)&&req.method==='POST'){
+   const id=decodeURIComponent(u.pathname.split('/')[3]||''),d=read(),a=(d.articles||[]).find(v=>v.id===id);
+   if(!a)return j(res,404,{error:'مقاله پیدا نشد'});
+   a.views=Number(a.views||0)+1;
+   a.lastViewedAt=new Date().toISOString();
+   writeNoVersion(d);
+   return j(res,200,{ok:true,views:a.views});
+ }
  if(u.pathname==='/api/seo/preview'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');return j(res,200,autoSeo(x))}
  if(u.pathname==='/api/ai'&&req.method==='POST'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req)||'{}'),d=read();if(!['excerpt','write_body','continue_body','article','generate','seo','links'].includes(x.action))return j(res,400,{error:'عملیات AI نامعتبر است'});try{const out=await callOpenAI(x.action,x.article||{},d,x.topic||'');return j(res,200,{ok:true,...out})}catch(e){console.error('AI error:',e);return j(res,502,{error:e.message||'خطا در سرویس هوش مصنوعی'})}}
  if(u.pathname==='/api/export'&&req.method==='GET'){if(!auth(req))return j(res,401,{error:'unauthorized'});return send(res,200,JSON.stringify(read(),null,2),'application/json; charset=utf-8',{'Content-Disposition':'attachment; filename=saeedintex-export.json'})}

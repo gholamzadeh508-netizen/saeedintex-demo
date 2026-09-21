@@ -67,3 +67,10 @@ Before final production launch, replace demo file persistence with PostgreSQL + 
 ## v3.5
 - Added `ذخیره و مشاهده در سایت` to every article editor.
 - It saves the latest edits first, then opens the article page in a new tab.
+
+## v3.6
+- Linked words are blue, bold, underlined and clickable in both the editor and public article page.
+- Articles admin opens as a compact portal-style line list; the article editor opens only when selected.
+- List shows status, view count and last edit date; sorting by most-viewed is included.
+- Article public page records one view per browser session.
+- Important: view counts and uploaded files in this Render demo use the instance filesystem. Before the final live site, move content, analytics and uploads to persistent database/object storage so deploys or instance replacement cannot reset them.
