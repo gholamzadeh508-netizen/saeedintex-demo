@@ -1,0 +1,17 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پنل مدیریت دمو | سعید اینتکس</title><link rel="stylesheet" href="/style.css"></head><body>
+<div id="nav"></div><div class="admin-shell"><aside class="sidebar"><h3>مدیریت سایت</h3><div class="sideitem">🏠 صفحه اصلی</div><div class="sideitem">📝 مقالات</div><div class="sideitem">🖼 تصاویر</div><div class="sideitem">🔎 سئو</div><div class="sideitem"><a href="/" target="_blank">👁 مشاهده سایت</a></div></aside>
+<main>
+<div class="panel"><div class="notice">نسخه دمو: تغییرات در همین مرورگر ذخیره می‌شود و بعد از Refresh باقی می‌ماند.</div></div>
+<div class="panel"><h2>صفحه اصلی</h2><div class="form-grid"><div><label>عنوان بنر</label><textarea id="heroTitle"></textarea></div><div><label>متن بنر</label><textarea id="heroText"></textarea></div><div><label>آدرس تصویر بنر</label><input id="heroImage"></div><div><label>لینک فروشگاه</label><input id="shopUrl"></div></div><label>عنوان معرفی</label><input id="introTitle"><label>متن معرفی</label><textarea id="introText"></textarea></div>
+<div class="panel"><h2>مقالات</h2><div id="articleAdmin"></div><button class="smallbtn cta" id="addArticle">+ مقاله جدید</button></div>
+<div class="savebar"><button class="cta" id="save">ذخیره تغییرات</button> <button class="smallbtn" id="reset">بازگشت به نسخه اولیه</button> <span id="status"></span></div>
+</main></div><script src="/data.js"></script><script src="/app.js"></script><script>
+let data=loadData();document.getElementById('nav').innerHTML=nav();
+function sync(){data.site.heroTitle=heroTitle.value;data.site.heroText=heroText.value;data.site.heroImage=heroImage.value;data.site.shopUrl=shopUrl.value;data.site.introTitle=introTitle.value;data.site.introText=introText.value;document.querySelectorAll('[data-i]').forEach(el=>{data.articles[+el.dataset.i][el.dataset.k]=el.value});}
+function render(){heroTitle.value=data.site.heroTitle;heroText.value=data.site.heroText;heroImage.value=data.site.heroImage;shopUrl.value=data.site.shopUrl;introTitle.value=data.site.introTitle;introText.value=data.site.introText;articleAdmin.innerHTML=data.articles.map((a,i)=>`<div class="panel" style="background:#f8fbfd"><div class="form-grid"><div><label>عنوان مقاله</label><input data-i="${i}" data-k="title" value="${a.title.replace(/"/g,'&quot;')}"></div><div><label>دسته</label><input data-i="${i}" data-k="category" value="${a.category}"></div></div><label>خلاصه</label><textarea data-i="${i}" data-k="excerpt">${a.excerpt}</textarea><label>آدرس تصویر</label><input data-i="${i}" data-k="image" value="${a.image}"><label>متن مقاله</label><textarea data-i="${i}" data-k="body">${a.body}</textarea><button class="smallbtn danger" onclick="delArticle(${i})">حذف مقاله</button></div>`).join('');}
+function delArticle(i){sync();data.articles.splice(i,1);render()}
+render();
+addArticle.onclick=()=>{sync();data.articles.push({id:'article-'+Date.now(),category:'آموزش',title:'عنوان مقاله جدید',excerpt:'خلاصه مقاله جدید',image:data.site.heroImage,body:'متن مقاله جدید'});render()};
+save.onclick=()=>{sync();saveData(data);status.className='success';status.textContent='✓ ذخیره شد. صفحه سایت را Refresh کنید.'};
+reset.onclick=()=>{resetData();data=loadData();render();status.textContent='نسخه اولیه بازگردانی شد.'};
+</script></body></html>
