@@ -38,3 +38,6 @@ Before final production launch, replace demo file persistence with PostgreSQL + 
 - بهینه‌سازی ساختار مقاله، بولد هوشمند و لینک داخلی
 - پیشنهاد SEO Title / Meta Description / Slug
 - پیش‌نمایش و تأیید مدیر قبل از اعمال
+
+## v3.1
+- Added AI controls directly beside article body: write body, rewrite/optimize, continue body.
