@@ -48,7 +48,14 @@ function sanitizeAiHtml(s){
   });
 }
 function aiPrompt(action,article,site,topic=''){
-  const links=(site.articles||[]).filter(a=>a.status==='published'&&a.id!==article?.id).slice(0,30).map(a=>({title:a.title,url:`/article.html?id=${encodeURIComponent(a.id)}`}));
+  const links=[
+    {title:'خانه',url:'/'},
+    {title:'همه مقالات',url:'/articles.html'},
+    {title:'راهنمای انتخاب محصول',url:'/guide.html'},
+    {title:'پرسش و پاسخ کاربران',url:'/questions.html'},
+    {title:'درباره سایت',url:'/about.html'},
+    ...(site.articles||[]).filter(a=>a.status==='published'&&a.id!==article?.id).slice(0,40).map(a=>({title:a.title,url:`/article.html?id=${encodeURIComponent(a.id)}`}))
+  ];
   const rules=`تو دستیار محتوای فارسی سایت saeedintex.ir هستی.
 نقش saeedintex.ir مرجع آموزشی، مقایسه، عیب‌یابی و پرسش‌وپاسخ است؛ فروشگاه و صفحات قیمت/موجودی در saeedintex.com هستند.
 محتوا نباید سایت .ir را فروشگاه دوم کند. از تبلیغات اغراق‌آمیز، ادعای «بهترین»، اطلاعات ساختگی، مشخصات محصولی که در ورودی نیست و وعده‌های بدون منبع خودداری کن.
@@ -66,6 +73,24 @@ ${JSON.stringify(links)}
   if(action==='article') return {instructions:rules,input:`متن موجود را از نظر ساختار، خوانایی، H2/H3، بولد هوشمند و لینک داخلی بازنویسی و بهینه کن. اطلاعات جدیدِ تأییدنشده اضافه نکن. خروجی: {"body":"HTML...","excerpt":"..."}\n${JSON.stringify(payload)}`};
   if(action==='generate') return {instructions:rules,input:`برای موضوع داده‌شده یک مقاله آموزشی کامل بنویس. ساختار منطقی H2/H3، پاراگراف‌های کوتاه، بولد محدود و لینک داخلی مرتبط داشته باشد. پایان مقاله فروش مستقیم نکند؛ فقط در صورت تناسب یک لینک طبیعی به فروشگاه اصلی مجاز است. خروجی: {"title":"...","excerpt":"...","body":"HTML...","category":"..."}\n${JSON.stringify(payload)}`};
   if(action==='seo') return {instructions:rules,input:`برای مقاله SEO Title حداکثر حدود 60 نویسه، Meta Description حدود 120 تا 160 نویسه و slug کوتاه و خوانا پیشنهاد بده. خروجی: {"title":"...","description":"...","slug":"..."}\n${JSON.stringify(payload)}`};
+  if(action==='links') return {instructions:rules,input:`متن مقاله را برای لینک‌سازی داخلی بررسی کن.
+قواعد:
+1) حداکثر 6 پیشنهاد بده و فقط وقتی واقعاً مفید است.
+2) text باید دقیقاً یک عبارت موجود در متن فعلی مقاله باشد؛ عین همان عبارت را بدون تغییر کپی کن.
+3) عبارت پیشنهادی بهتر است 2 تا 6 واژه و معنایی باشد؛ «اینجا»، «بیشتر» و عبارت‌های عمومی را پیشنهاد نده.
+4) عبارتی که همین حالا داخل تگ a است دوباره پیشنهاد نده.
+5) به تیترهای H2/H3 لینک نده؛ عبارت باید از متن پاراگراف یا فهرست باشد.
+6) برای لینک داخلی فقط یکی از URLهای فهرست مجاز را انتخاب کن و به خود همین مقاله لینک نده.
+7) برای یک URL بیش از یک پیشنهاد نده.
+8) فقط اگر متن واقعاً نیت خرید/قیمت/موجودی دارد، حداکثر یک پیشنهاد از نوع store با URL فروشگاه اصلی بده.
+9) اگر لینک مناسبی وجود ندارد، suggestions را خالی برگردان.
+خروجی دقیقاً:
+{"suggestions":[{"text":"عبارت دقیق داخل مقاله","url":"/article.html?id=...","targetTitle":"عنوان صفحه مقصد","reason":"دلیل کوتاه","type":"internal"}]}
+برای لینک فروشگاه type برابر store باشد.
+فهرست URLهای مجاز: ${JSON.stringify(links)}
+فروشگاه اصلی: ${site.settings.shopUrl}
+مقاله:
+${JSON.stringify(payload)}`};
   return {instructions:rules,input:`خروجی JSON مناسب تولید کن.\n${JSON.stringify(payload)}`};
 }
 async function callOpenAI(action,article,site,topic){
@@ -117,7 +142,7 @@ http.createServer(async(req,res)=>{const u=new URL(req.url,`http://${req.headers
  if(u.pathname==='/api/questions'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');if(!x.title||!x.body)return j(res,400,{error:'عنوان و متن سؤال لازم است'});const d=read();d.questions.unshift({id:'q'+Date.now(),title:x.title.slice(0,180),body:x.body.slice(0,4000),author:(x.author||'کاربر مهمان').slice(0,80),status:'pending',createdAt:new Date().toISOString().slice(0,10),answers:[]});save(d);return j(res,200,{ok:true,message:'سؤال برای بررسی ارسال شد'})}
  if(/^\/api\/questions\/[^/]+\/answers$/.test(u.pathname)&&req.method==='POST'){const id=u.pathname.split('/')[3],x=JSON.parse(await body(req)||'{}'),d=read(),q=d.questions.find(v=>v.id===id);if(!q)return j(res,404,{error:'سؤال پیدا نشد'});q.answers.push({id:'a'+Date.now(),body:(x.body||'').slice(0,5000),author:(x.author||'کاربر مهمان').slice(0,80),official:false,status:'pending',helpful:0,createdAt:new Date().toISOString().slice(0,10)});save(d);return j(res,200,{ok:true,message:'پاسخ برای بررسی ارسال شد'})}
  if(u.pathname==='/api/seo/preview'&&req.method==='POST'){const x=JSON.parse(await body(req)||'{}');return j(res,200,autoSeo(x))}
- if(u.pathname==='/api/ai'&&req.method==='POST'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req)||'{}'),d=read();if(!['excerpt','write_body','continue_body','article','generate','seo'].includes(x.action))return j(res,400,{error:'عملیات AI نامعتبر است'});try{const out=await callOpenAI(x.action,x.article||{},d,x.topic||'');return j(res,200,{ok:true,...out})}catch(e){console.error('AI error:',e);return j(res,502,{error:e.message||'خطا در سرویس هوش مصنوعی'})}}
+ if(u.pathname==='/api/ai'&&req.method==='POST'){if(!auth(req))return j(res,401,{error:'unauthorized'});const x=JSON.parse(await body(req)||'{}'),d=read();if(!['excerpt','write_body','continue_body','article','generate','seo','links'].includes(x.action))return j(res,400,{error:'عملیات AI نامعتبر است'});try{const out=await callOpenAI(x.action,x.article||{},d,x.topic||'');return j(res,200,{ok:true,...out})}catch(e){console.error('AI error:',e);return j(res,502,{error:e.message||'خطا در سرویس هوش مصنوعی'})}}
  if(u.pathname==='/api/export'&&req.method==='GET'){if(!auth(req))return j(res,401,{error:'unauthorized'});return send(res,200,JSON.stringify(read(),null,2),'application/json; charset=utf-8',{'Content-Disposition':'attachment; filename=saeedintex-export.json'})}
  if(u.pathname.startsWith('/uploads/'))return serve(res,path.join(UPLOADS,path.basename(u.pathname)));
  const rel=u.pathname==='/'?'index.html':u.pathname.replace(/^\/+/,''),f=path.join(ROOT,rel);if(f.startsWith(ROOT)&&fs.existsSync(f))return serve(res,f);return serve(res,path.join(ROOT,'404.html'));

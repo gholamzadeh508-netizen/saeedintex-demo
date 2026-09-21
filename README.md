@@ -55,3 +55,15 @@ Before final production launch, replace demo file persistence with PostgreSQL + 
 - Image optimizer now uses role-specific WebP presets; hero images are auto-cropped to a web banner ratio, article images preserve aspect ratio.
 - Shows image preview and before/after dimensions and approximate file size.
 - Admin sidebar buttons now use clearer, distinct professional colors and active-state highlighting.
+
+## v3.4
+- Added **AI Link Suggestions** for article text.
+- AI can only suggest exact phrases already present in the article.
+- Suggestions show anchor phrase, destination, type (internal/store), and reason.
+- Each suggestion has an approval checkbox; nothing is linked without admin approval.
+- Approved links are inserted only into normal body text, not H2/H3 headings or existing links.
+- Added current-link audit against known internal pages and the main saeedintex.com store.
+
+## v3.5
+- Added `ذخیره و مشاهده در سایت` to every article editor.
+- It saves the latest edits first, then opens the article page in a new tab.
